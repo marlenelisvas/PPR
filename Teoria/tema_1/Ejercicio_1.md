@@ -56,15 +56,15 @@ Es un servidor web multiplataforma. Su objetivo es ser rápido y completamente f
 
 Entre sus principales características están:
 
-* Soporta tecnologías como: FastCGI, SCGI, PHP, CGI, SSI, SSL/TLS.5
-* Soporta la configuración de servidores virtuales.
-* Permite la realización de redirecciones.
-* Permite su utilización como balanceador de carga.
-* Dispone de un panel de autenticación:
--- plain
--- htpasswd
--- htdigest
--- PAM
+- Soporta tecnologías como: FastCGI, SCGI, PHP, CGI, SSI, SSL/TLS.5
+- Soporta la configuración de servidores virtuales.
+- Permite la realización de redirecciones.
+- Permite su utilización como balanceador de carga.
+- Dispone de un panel de autenticación: 
+ - plain
+ - htpasswd
+ - htdigest
+ - PAM
 
 #Node.js 
 
