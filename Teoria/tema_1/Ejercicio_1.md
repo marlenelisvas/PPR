@@ -1,8 +1,8 @@
+#Ejercicio T1: 1
 **Buscar información sobre el tipo de contenido para el que los siguientes software de servidor web es más adecuado (o más eficiente, o se usa más actualmente...)** 
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-- [Software de Servidor Web ]()
+
+- [Software de Servidor Web](#)
   - [Apache](#1)
   - [Nginx](#Nginx)
   - [thttpd](#thttpd)
@@ -11,9 +11,7 @@
   - [Tomcat](#Tomcat)
 - [Referencias](#Referencias)
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-#Apache
+#Apache {#1}
 
 Apache es **usado** principalmente para enviar páginas web estáticas y dinámicas en la World Wide Web (WWW).
 
