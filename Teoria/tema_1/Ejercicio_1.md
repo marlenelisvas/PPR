@@ -7,7 +7,7 @@
   - [Nginx](#nginx) 
   - [Thttpd](#thttpd) 
   - [Cherokee](#cherokee) 
-  - [Node.js](#node.js) 
+  - [Node.js](#nodejs) 
   - [Tomcat](#tomcat) 
 - [Referencias](#referencias) 
 
@@ -41,7 +41,7 @@ Algunos aspectos en los que destaca Nginx:
 - Soporta TLS/SSL y similares
 - Ofrece cierta tolerancia a fallos
 
-#thttp 
+#Thttp 
 
 Es un servidor web de código libre disponible para la mayoría de las variantes de Unix.
 Se caracteriza por ser simple, pequeño, portátil, rápido, y seguro, ya que utiliza los requerimientos mínimos de un servidor HTTP. Esto lo hace ideal para servir grandes volúmenes de información estática.
