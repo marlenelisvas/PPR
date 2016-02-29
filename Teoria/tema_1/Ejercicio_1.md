@@ -5,11 +5,11 @@
 - [Software de Servidor Web](#)
   - [Apache](#apache)
   - [Nginx](#nginx) 
-  - [thttpd](#thttpd) 
+  - [Thttpd](#thttpd) 
   - [Cherokee](#cherokee) 
-  - [Node.js](#Node.js) 
-  - [Tomcat](#Tomcat) 
-- [Referencias](#Referencias) 
+  - [Node.js](#node.js) 
+  - [Tomcat](#tomcat) 
+- [Referencias](#referencias) 
 
 #Apache 
 
