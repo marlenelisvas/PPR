@@ -1,9 +1,21 @@
->Buscar información sobre el tipo de contenido para el que los siguientes software de servidor web es más adecuado (o más eficiente, o se usa más actualmente...) 
+**Buscar información sobre el tipo de contenido para el que los siguientes software de servidor web es más adecuado (o más eficiente, o se usa más actualmente...)** 
 
-> ![imagen](https://github.com/marlenelisvas/SWAP/blob/master/Teoria/images/t1_ej1.jpg) 
-### apache
----
- Apache es **usado** principalmente para enviar páginas web estáticas y dinámicas en la World Wide Web (WWW).
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+- [Software de Servidor Web ]()
+  - [Apache](#1)
+  - [Nginx](#Nginx)
+  - [thttpd](#thttpd)
+  - [Cherokee](#Cherokee)
+  - [Node.js](#Node.js)
+  - [Tomcat](#Tomcat)
+- [Referencias](#Referencias)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+#Apache
+
+Apache es **usado** principalmente para enviar páginas web estáticas y dinámicas en la World Wide Web (WWW).
 
 Una de las **ventajas** más grandes de Apache, es que es un servidor web multiplataforma, es decir, puede trabajar con diferentes sistemas operativos y mantener su excelente rendimiento.
 
@@ -12,9 +24,8 @@ Entre las principales **características** de Apache, se encuentran las siguient
 - Puede realizar autentificación de datos utilizando SGDB.
 - Puede dar soporte a diferentes lenguajes, como Perl, PHP, Python y tcl.
  
- 
-### nginx
----
+#Nginx
+
 Nginx además de ser un servidor web ligero de alto rendimiento, también es un excelente proxy inverso para contenido web o para protocolos de correo electrónico como por ejemplo IMAP o POP3.
 
 La principal **ventaja** de Nginx como servidor web es que consume muchos menos recursos al servir contenido estático, y esto convierte a Nginx en una excelente opción para funcionar como proxy inverso o como balanceador de carga para otros servidores como Apache, optimizando la entrega de contenidos.
@@ -32,8 +43,8 @@ Algunos aspectos en los que destaca Nginx:
 - Soporta TLS/SSL y similares
 - Ofrece cierta tolerancia a fallos
 
-### thttp
----
+#thttp
+
 Es un servidor web de código libre disponible para la mayoría de las variantes de Unix.
 Se caracteriza por ser simple, pequeño, portátil, rápido, y seguro, ya que utiliza los requerimientos mínimos de un servidor HTTP. Esto lo hace ideal para servir grandes volúmenes de información estática.
 
@@ -41,8 +52,8 @@ El uso apropiado de esta herramienta es obtener velocidad en la transferencia de
 
 Este rasgo importante permite al administrador del servidor limitar la tasa de bit máxima para ciertos tipos de archivos transferidos, generando, una aplicación mucho más ligera y rápida.
 
-### Cherokee
----
+#Cherokee 
+
 Es un servidor web multiplataforma. Su objetivo es ser rápido y completamente funcional, sin dejar de ser liviano comparado con otros servidores web. 
 
 Entre sus principales características están:
@@ -57,17 +68,17 @@ Entre sus principales características están:
 -- htdigest
 -- PAM
 
-### node.js
----
-Está diseñado para construir aplicaciones de red escalables.Con entradas y salidas (I/O) de datos en una arquitectura orientada a eventos, uno de los puntos fuertes de Node es su capacidad de mantener muchas conexiones abiertas y esperando. 
+#Node.js
 
-### tomcat 
----
+Está diseñado para construir aplicaciones de red escalables con entradas y salidas (I/O) de datos en una arquitectura orientada a eventos, uno de los puntos fuertes de Node es su capacidad de mantener muchas conexiones abiertas y esperando. 
+
+#Tomcat 
+
 Tomcat es un contenedor web con soporte de servlets. El motor de servlets de Tomcat a menudo se presenta en combinación con el servidor web Apache. 
 Tomcat es usado como servidor web autónomo en entornos con alto nivel de tráfico y alta disponibilidad.
 
-### Referencias
----
+#Referencias
+
 - https://es.opensuse.org/Apache
 - https://openwebinars.net/nginx-vs-apache/
 - http://www.acme.com/
