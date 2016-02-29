@@ -1,9 +1,9 @@
 ### Trabajos
 ----
-> ![imagen]() 
+> ![imagen](https://github.com/marlenelisvas/SWAP/blob/master/Teoria/images/trj.jpg) 
 
 **Tema 1** 
-- [Ejercicio 1](), [Ejercicio 2]()  
+- [Ejercicio 1](https://github.com/marlenelisvas/SWAP/blob/master/Teoria/tema_2/Ejercicio_1.md), [Ejercicio 2]()  
  
 **Tema 2**  
 **Tema 3**  
