@@ -11,8 +11,8 @@
   - [Tomcat](#Tomcat)
 - [Referencias](#Referencias)
 
-Apache {#apache}
-----
+#Apache 
+
 Apache es **usado** principalmente para enviar páginas web estáticas y dinámicas en la World Wide Web (WWW).
 
 Una de las **ventajas** más grandes de Apache, es que es un servidor web multiplataforma, es decir, puede trabajar con diferentes sistemas operativos y mantener su excelente rendimiento.
