@@ -1,9 +1,9 @@
 #  Servidores Web de Altas Prestaciones (SWAP)
 
 ## Temario	de	teoría:
-- **Tema 1.** Introducción. [Trabajos](https://github.com/marlenelisvas/SWAP/blob/master/Teoria/trabajos.md)
-- **Tema 2.** Alta	disponibilidad	y	escalabilidad	en	servidores	web.
-- **Tema 3.** La red de	una	granja web.
+- **Tema 1.** Introducción. [Trabajos](https://github.com/marlenelisvas/SWAP/blob/master/Teoria/readme.md)
+- **Tema 2.** Alta disponibilidad y escalabilidad en servidores web.
+- **Tema 3.** La red de	una granja web.
 - **Tema 4.** Balanceo de carga.
 - **Tema 5.** Medición de prestaciones.
 - **Tema 6.** Asegurar el sistema web.
