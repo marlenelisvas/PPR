@@ -4,12 +4,12 @@
 
 - [Software de Servidor Web](#)
   - [Apache](#apache)
-  - [Nginx](#Nginx)
-  - [thttpd](#thttpd)
-  - [Cherokee](#Cherokee)
-  - [Node.js](#Node.js)
-  - [Tomcat](#Tomcat)
-- [Referencias](#Referencias)
+  - [Nginx](#nginx) 
+  - [thttpd](#thttpd) 
+  - [Cherokee](#cherokee) 
+  - [Node.js](#Node.js) 
+  - [Tomcat](#Tomcat) 
+- [Referencias](#Referencias) 
 
 #Apache 
 
@@ -22,7 +22,7 @@ Entre las principales **características** de Apache, se encuentran las siguient
 - Puede realizar autentificación de datos utilizando SGDB.
 - Puede dar soporte a diferentes lenguajes, como Perl, PHP, Python y tcl.
  
-#Nginx
+#Nginx 
 
 Nginx además de ser un servidor web ligero de alto rendimiento, también es un excelente proxy inverso para contenido web o para protocolos de correo electrónico como por ejemplo IMAP o POP3.
 
@@ -41,7 +41,7 @@ Algunos aspectos en los que destaca Nginx:
 - Soporta TLS/SSL y similares
 - Ofrece cierta tolerancia a fallos
 
-#thttp
+#thttp 
 
 Es un servidor web de código libre disponible para la mayoría de las variantes de Unix.
 Se caracteriza por ser simple, pequeño, portátil, rápido, y seguro, ya que utiliza los requerimientos mínimos de un servidor HTTP. Esto lo hace ideal para servir grandes volúmenes de información estática.
@@ -66,7 +66,7 @@ Entre sus principales características están:
 -- htdigest
 -- PAM
 
-#Node.js
+#Node.js 
 
 Está diseñado para construir aplicaciones de red escalables con entradas y salidas (I/O) de datos en una arquitectura orientada a eventos, uno de los puntos fuertes de Node es su capacidad de mantener muchas conexiones abiertas y esperando. 
 
