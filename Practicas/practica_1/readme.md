@@ -1,17 +1,19 @@
-#Práctica 1
+# Práctica Nº 1
 
-##Objetivo
+### Objetivo
 
 En esta práctica el objetivo es configurar las máquinas virtuales para trabajar en prácticas posteriores.
 
-##Resultados
+### Resultados
 
-Ejecución de los siguientes comandos en el terminal:
+ Ejecución de los siguientes comandos:
 
-*apache2 -v* 
-
-*ps aux | grep apache*
-
+```sh
+$ apache2 -v
+```
+```sh
+$ ps aux | grep apache
+```
 **Salida** 
 
 ![imagen](https://github.com/marlenelisvas/SWAP/blob/master/Practicas/images/practica1%20_S3.png)
