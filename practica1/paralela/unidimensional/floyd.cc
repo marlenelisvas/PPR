@@ -47,7 +47,7 @@ int main (int argc, char *argv[])
 
       if (nverts < 100)
       {
-        cout << "EL Grafo de entrada es:"<<endl;
+        //cout << "EL Grafo de entrada es:"<<endl;
         //G.imprime();
       }
     }
@@ -82,7 +82,10 @@ int main (int argc, char *argv[])
 
   MPI_Barrier(MPI_COMM_WORLD);//  Espera a todos los procesos 
   int i, j, k, vikj, root, local;
-  
+  int iG, iInit , iEnd;
+
+  iInit = rank *tam_Bloque;
+  iEnd = (rank +1)*tam_Bloque;
   
   double t = MPI::Wtime(); // Se obtiene el tiempo de inicio
   //============================================================================
@@ -93,10 +96,10 @@ int main (int argc, char *argv[])
     {
       root = k / tam_Bloque;
       local = k % tam_Bloque;
-      int _j_;
-
-      for(_j_ = 0; _j_ < nverts; _j_++)
-        vector_aux_K[_j_] = matriz_local[local * nverts +_j_ ];         
+     
+      if (k >= iInit && k < iEnd)
+      for(int jL = 0; jL < nverts; jL++)
+        vector_aux_K[jL] = matriz_local[local * nverts +jL ];         
        
       //***********  Compartiendo  k   ********************      
       MPI_Bcast(  vector_aux_K,//vector que se comparte
@@ -105,11 +108,12 @@ int main (int argc, char *argv[])
                   root,// proceso raiz
                   MPI_COMM_WORLD); //comunicador global
 
-        for (i = 0; i < tam_Bloque; i++)  
-          for (j = 0; j < nverts; j++) {         
-              vikj = min( matriz_local[i* nverts + j], matriz_local[i * nverts + k] + vector_aux_K[j]);
-              matriz_local[i * nverts + j] = vikj;          
-          }       
+        for (i = 0; i < tam_Bloque; i++) {
+          iG = iInit + i; 
+          for (j = 0; j < nverts; j++)   
+             if (iG != j && iG != k && j != k)        
+                matriz_local[i * nverts + j] = min( matriz_local[i* nverts + j], matriz_local[i * nverts + k] + vector_aux_K[j]);                    
+        }       
     }
 
     t = MPI::Wtime()-t; // se calcula el tiempo de finalizacion
@@ -133,10 +137,10 @@ int main (int argc, char *argv[])
    {
       if (nverts < 100)
       {
-        cout << endl<<"EL Grafo con las distancias de los caminos más cortos es:"<<endl<<endl;
-        G.imprime();
+       // cout << endl<<"EL Grafo con las distancias de los caminos más cortos es:"<<endl<<endl;
+        //G.imprime();
       }        
-      cout<< "Tiempo gastado= "<<t<<endl<<endl;
+      cout<<nverts<< endl<<t<<endl<<endl;
    }
     return (0);
 }
