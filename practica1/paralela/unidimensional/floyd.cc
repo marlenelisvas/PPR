@@ -24,7 +24,7 @@ int main (int argc, char *argv[])
 
     Graph G;
     int nverts ;
-    int tam_local, tam_Bloque;
+    int tam_comp, tam_Bloque;
 
     int *ptr_matriz;
     int *matriz_local;
@@ -45,23 +45,23 @@ int main (int argc, char *argv[])
       G.lee(argv[1]);   // Read the Graph
       nverts = G.vertices; //se obtiene el número de vértices.
 
-      if (nverts < 100)
-      {
+      // if (nverts < 100)
+      // {
         //cout << "EL Grafo de entrada es:"<<endl;
         //G.imprime();
-      }
+     // }
     }
   //============================================================================
   //realiza el reparto del nº de vertices a todo los procesos 
   //============================================================================
-    MPI_Bcast(&nverts, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&nverts, 1, MPI_INT, 0, MPI_COMM_WORLD);
   //obtenemos el puntero a la matriz 
   G.getMatriz(ptr_matriz);
   //============================================================================
   // reserva de memoria para la fila y el bloque 
   // considerando que nverts % size = 0
   //============================================================================
-  tam_local = nverts * (nverts / size);
+  tam_comp = nverts * (nverts / size);
   tam_Bloque = nverts /size; 
 
   vector_aux_K = new int[nverts];
@@ -71,36 +71,35 @@ int main (int argc, char *argv[])
   // manera ya que la matriz esta creada como un unico vector.
   //============================================================================
   MPI_Scatter(ptr_matriz, // Matriz que vamos a compartir
-              tam_local, // Numero de columnas a compartir
+              tam_comp, // Numero de datos a compartir
               MPI_INT, // Tipo de dato a enviar
               matriz_local, // Vector en el que almacenar los datos
-              tam_local, // Numero de columnas a compartir
+              tam_comp, // Numero de columnas a compartir
               MPI_INT, // Tipo de dato a recibir
               0, // Proceso raiz que envia los datos
-              MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global)
-
-
-  MPI_Barrier(MPI_COMM_WORLD);//  Espera a todos los procesos 
+              MPI_COMM_WORLD); // Comunicador utilizado (En este caso, el global) 
+  //============================================================================
+  //  Inicializacion - operaciones (fuera del bucle del algoritmo)     
+  //============================================================================
   int i, j, k, vikj, root, local;
   int iG, iInit , iEnd;
 
   iInit = rank *tam_Bloque;
   iEnd = (rank +1)*tam_Bloque;
-  
+
+  MPI_Barrier(MPI_COMM_WORLD);//  Espera a todos los procesos 
   double t = MPI::Wtime(); // Se obtiene el tiempo de inicio
   //============================================================================
   //          BUCLE DEL ALGORITMO
-  //============================================================================       
-
+  //============================================================================
     for(k = 0; k < nverts; k++)
     {
       root = k / tam_Bloque;
       local = k % tam_Bloque;
-     
+    
       if (k >= iInit && k < iEnd)
       for(int jL = 0; jL < nverts; jL++)
-        vector_aux_K[jL] = matriz_local[local * nverts +jL ];         
-       
+        vector_aux_K[jL] = matriz_local[local * nverts +jL ];        
       //***********  Compartiendo  k   ********************      
       MPI_Bcast(  vector_aux_K,//vector que se comparte
                   nverts, // numero de datos
@@ -122,10 +121,10 @@ int main (int argc, char *argv[])
   // Para imprimir los resultados -> recogemos los datos
   //============================================================================
     MPI_Gather( matriz_local, // matriz donde se han guardado los  datos a enviar
-                tam_local,// numero de datos a enviar
+                tam_comp,// numero de datos a enviar
                 MPI_INT,//tipo de dato a enviar
                 ptr_matriz,// matriz donde se recogera los datos
-                tam_local,// numero de datos a  recibir
+                tam_comp,// numero de datos a  recibir
                 MPI_INT,//tipo de dato a recibir
                 0, // proceso raiz 
                 MPI_COMM_WORLD);// comunicador utilizado (En este caso, el  global)
@@ -135,12 +134,12 @@ int main (int argc, char *argv[])
   //============================================================================
    if (rank == 0)//solo lo realiza el proceso 0
    {
-      if (nverts < 100)
-      {
-       // cout << endl<<"EL Grafo con las distancias de los caminos más cortos es:"<<endl<<endl;
-        //G.imprime();
-      }        
-      cout<<nverts<< endl<<t<<endl<<endl;
+      // if (nverts < 100)
+      // {
+      //   cout << endl<<"EL Grafo con las distancias de los caminos más cortos es:"<<endl<<endl;
+      //   G.imprime();
+      // }        
+      cout<<t<<endl;
    }
     return (0);
 }

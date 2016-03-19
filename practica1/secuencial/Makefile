@@ -16,4 +16,6 @@ floyd.o   :	floyd.cc
 floyd :		$(MODULES)
 	$(CC) $(CFLAGS) $(MODULES) -o $(NAME) $(EXTRALIBS)
 clean	:
-	rm -f $(MODULES)  $(NAME) *.*~
+	rm -f $(MODULES)  $(NAME) 
+rm:
+	rm -f *.*~ *~

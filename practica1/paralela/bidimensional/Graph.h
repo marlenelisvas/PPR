@@ -12,6 +12,7 @@ class Graph //Adjacency List clas
 	   int *A;
 	public:
            Graph();
+	~Graph();
            int vertices;
 	   	void fija_nverts(const int verts);
 	   	void inserta_arista(const int ptA,const int ptB, const int edge);

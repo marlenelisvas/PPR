@@ -25,7 +25,7 @@ int nverts = G.vertices;
 if (nverts < 100)
 {
   cout << "EL Grafo de entrada es:"<<endl;
-  G.imprime();
+  //G.imprime();
 }
 
 double t = MPI::Wtime();

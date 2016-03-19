@@ -4,7 +4,7 @@
  Author      : Marlene Vásquez
  Version     :
  Copyright   : GNU Open Source and Free license
- Description : Algoritmo de FLOYD con reparto unidimensional (MPI)
+ Description : Algoritmo de FLOYD con reparto bidimensional (MPI)
 ============================================================================
 */
 #include <iostream>
@@ -45,21 +45,17 @@ int main (int argc, char *argv[])
     {
       G.lee(argv[1]);   // Read the Graph
       nverts = G.vertices; //se obtiene el número de vértices.
-      if (nverts < 100)
-      {
-       // cout << "EL Grafo de entrada es:"<<endl;
-        //G.imprime();
-      }
+      // if (nverts < 100)
+      // {
+      //   cout << "EL Grafo de entrada es:"<<endl;
+      //   G.imprime();
+      // }
     }
-  //============================================================================
-  //realiza el reparto del nº de vertices a todo los procesos 
-  //============================================================================
-    MPI_Bcast(&nverts,
-              1,
-              MPI_INT,
-              0,
-              MPI_COMM_WORLD);
-//===================================================================
+    //===================================================================
+    //realiza el reparto del nº de vertices a todo los procesos 
+    //===================================================================
+    MPI_Bcast(&nverts,1,MPI_INT, 0,MPI_COMM_WORLD);
+    //===================================================================
     raiz_P = sqrt(size);
     tam = nverts / raiz_P; 
     nverts_2 = nverts * nverts;
@@ -67,8 +63,9 @@ int main (int argc, char *argv[])
     int size_col = tam, 
         size_fil = tam;
     int fil_x_col = size_fil * size_col; // tam * tam
-//==================================================================
-
+    //==================================================================
+    //                    Empaquetado
+    //==================================================================
     MPI_Datatype MPI_BLOQUE;
     /* Creo buffer de envio para almacenar los datos empaquetados*/
     int *buf_envio;
@@ -94,11 +91,14 @@ int main (int argc, char *argv[])
                   buf_envio, // inicio del buffer de salida
                   sizeof(int)* nverts_2, //tamaño del buffer de salida en bytes
                   &posicion, // posicion actual del buffer
-                  MPI_COMM_WORLD);//comunicador
+                  MPI_COMM_WORLD);//comunicador Global
       }
       /*libero el tipo bloque*/
       MPI_Type_free(&MPI_BLOQUE);
-    }    
+    } 
+//==================================================================
+//                   Distribucion
+//==================================================================  
     /*creo un buffer de recepcion*/
     int *buf_recep;
     buf_recep = new int[fil_x_col]; 
@@ -110,16 +110,17 @@ int main (int argc, char *argv[])
                   fil_x_col, // numero de elementos que espera recibir
                   MPI_INT, // tipo de dato a recibir
                   0, // rank procesos raiz
-                  MPI_COMM_WORLD);// comunicador
-  //==========================================================================    
+                  MPI_COMM_WORLD);// comunicador  Global
+//==================================================================
+//                    Comunicadores
+//==================================================================    
     int color_fil, color_col, rank_fil, rank_col;
     color_fil = rank / raiz_P;
     color_col = rank % raiz_P;  
 
     // creamos un nuevo comunicador
-    MPI_Comm_split(MPI_COMM_WORLD,// a partir del comunicador global.
-            // los del mismo color entraran en el mismo comunicador
-            color_col, // 
+    MPI_Comm_split(MPI_COMM_WORLD,// a partir del comunicador global.            
+            color_col, // los del mismo color entraran en el mismo comunicador
             rank, // indica el orden de asignacion de rango dentro de los nuevos comunicadores
             &comm_col); // Referencia al nuevo comunicador creado.
     // creamos un nuevo comunicador
@@ -129,8 +130,10 @@ int main (int argc, char *argv[])
             &comm_fil); // Referencia al nuevo comunicador creado.
 
     MPI_Comm_rank(comm_col, &rank_col); // Obtenemos el valor de nuestro identificador en el comunicador col_comm    
-    MPI_Comm_rank(comm_fil, &rank_fil); // Obtenemos el valor de nuestro identificador en el comunicador fil_comm
-   //==========================================================================    
+    MPI_Comm_rank(comm_fil, &rank_fil); // Obtenemos el valor de nuestro identificador en el comunicador fil_comm 
+//==================================================================
+//  Inicializacion - operaciones (fuera del bucle del algoritmo)     
+//==================================================================   
     int *col, *fil;
     col = new int[size_col];
     fil = new int[size_fil];   
@@ -139,44 +142,47 @@ int main (int argc, char *argv[])
     int iG, jG, iInit, iEnd, jInit, jEnd; 
 
     iInit = color_fil * size_fil;
-    iEnd= (color_fil + 1) * size_fil; 
+    iEnd  = (color_fil + 1) * size_fil; 
     jInit = color_col * size_col; 
-    jEnd = (color_col + 1) * size_col; 
+    jEnd  = (color_col + 1) * size_col; 
  
     MPI_Barrier(MPI_COMM_WORLD);//  Espera a todos los procesos 
+     double t = MPI::Wtime(); // Se obtiene el tiempo de inicio
   //=========================================================================
   //          BUCLE DEL ALGORITMO
-  //=========================================================================    
-    double t = MPI::Wtime(); // Se obtiene el tiempo de inicio
-   
+  //=========================================================================   
       for(k=0 ; k < nverts; k++){
 
         root = k / size_col;
         local = k % size_fil;
+      //=======================================================
         //------copiar fila----------
         if (k >= iInit && k < iEnd)
           for(int jL = 0; jL < size_fil; jL++)
-            fil[jL]= buf_recep[local * size_col + jL]; 
-              
+            fil[jL]= buf_recep[local * size_col + jL];              
+        MPI_Barrier(comm_col); 
+        MPI_Bcast( fil, size_fil, MPI_INT, root, comm_col );
+      //=======================================================             
         //-------copiar columna--------- 
         if (k >= jInit && k < jEnd)       
           for(int jL = 0; jL < size_col; jL++)
-            col[jL]= buf_recep[ jL* size_fil + local ];    
-      //=======================================================
-        MPI_Bcast( fil, size_fil, MPI_INT, root, comm_col ); 
+            col[jL]= buf_recep[ jL* size_fil + local ];
+        MPI_Barrier(comm_fil);    
         MPI_Bcast( col, size_col, MPI_INT, root, comm_fil );
       //=======================================================
         for (i=0 ; i < size_fil; i++){
-          iG = iInit + i;
+         iG = iInit + i;
           for (j= 0; j < size_col; j++)  {   
-           jG = jInit + j;
-           if (iG != jG && iG != k && jG != k) 
+            jG = jInit + j;
+            if (iG != jG && iG != k && jG != k) 
               buf_recep[ i*tam +j ] = min(buf_recep[ i*tam+j ], col[i] + fil[j]);
           }
         }
     }      
     t = MPI_Wtime() - t; 
-//============================================================================
+//==================================================================
+//                    Recogida de datos
+//==================================================================
 //obtener el resultado
   MPI_Gather(   buf_recep, // matriz donde se han guardado los  datos 
                 fil_x_col,// numero de datos a enviar
@@ -187,6 +193,9 @@ int main (int argc, char *argv[])
                 0, // proceso raiz 
                 MPI_COMM_WORLD);// comunicador utilizado (En este caso, el  global)
 
+//==================================================================
+//                    Desmpaquetado
+//==================================================================
   if(rank == 0)
   {
     /* Defino el tipo bloque cuadrado*/
@@ -214,15 +223,27 @@ int main (int argc, char *argv[])
   }
 
   MPI::Finalize();
+
+  
+//==================================================================
+//                    Impresion del Grafo
+//==================================================================
   if (rank == 0)//solo lo realiza el proceso 0
   {
-      if (nverts < 100)
-      {
-       //cout << endl<<"EL Grafo con las distancias de los caminos más cortos es:"<<endl<<endl;
-       // G.imprime();
-      }        
-       cout<< nverts<<" \n "<< t <<endl<<endl;
+      // if (nverts < 100)
+      // {
+      //  cout << endl<<"EL Grafo con las distancias de los caminos más cortos es:"<<endl<<endl;
+      // G.imprime();
+      // } 
+      //cout<<" Tiempo gastado = ";       
+      cout<< t <<endl;
    }
-    return (0);
+
+  free(buf_envio);
+  free(buf_recep);
+  free(col);
+  free(fil);
+  
+  return (0);
 }
 

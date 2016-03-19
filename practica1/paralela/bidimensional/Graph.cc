@@ -13,6 +13,11 @@ Graph::Graph ()		// Constructor
 {
 }
 //***********************************************************************
+Graph::~Graph ()   // Constructor
+{
+  //delete []A;
+}
+//***********************************************************************
 void Graph::fija_nverts (const int nverts)
 {
 A = new int[nverts*nverts];
