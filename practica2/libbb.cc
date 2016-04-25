@@ -7,7 +7,10 @@
 #include <mpi.h>
 #include "libbb.h"
 using namespace MPI;
+using namespace std;
 extern unsigned int NCIUDADES;
+
+#define TAGCOTA  0
 
 // Tipos de mensajes que se env�an los procesos
 const int  PETICION = 0;
@@ -25,8 +28,8 @@ const int NEGRO = 1;
 
 
 // Comunicadores que usar� cada proceso
-Intracomm comunicadorCarga;	// Para la distribuci�n de la carga
-Intracomm comunicadorCota;	// Para la difusi�n de una nueva cota superior detectada
+MPI_Comm comunicadorCarga;	// Para la distribuci�n de la carga
+MPI_Comm comunicadorCota;	// Para la difusi�n de una nueva cota superior detectada
 
 // Variables que indican el estado de cada proceso
 extern int rank;	 // Identificador del proceso dentro de cada comunicador (coincide en ambos)
@@ -44,7 +47,6 @@ bool pendiente_retorno_cs;	// Indica si el proceso est� esperando a recibir la
 /* ********************************************************************* */
 /* ****************** Funciones para el Branch-Bound  ********************* */
 /* ********************************************************************* */
-
 void LeerMatriz (char archivo[], int** tsp) {
   FILE *fp;
   int i, j;
@@ -53,16 +55,16 @@ void LeerMatriz (char archivo[], int** tsp) {
     printf ("ERROR abriendo archivo %s en modo lectura.\n", archivo);
     exit(1);
   }
-  printf ("-------------------------------------------------------------\n");
+  // printf ("-------------------------------------------------------------\n");
   for (i=0; i<NCIUDADES; i++) {
     for (j=0; j<NCIUDADES; j++) {
       fscanf( fp, "%d", &tsp[i][j] );
-      printf ("%3d", tsp[i][j]);
+      // printf ("%3d", tsp[i][j]);
     }
     fscanf (fp, "\n");
-    printf ("\n");
+    // printf ("\n");
   }
-  printf ("-------------------------------------------------------------\n");
+  // printf ("-------------------------------------------------------------\n");
 }
 
 
@@ -304,8 +306,6 @@ void EscribeNodo (tNodo *nodo) {
   printf ("\n");
 }
 
-
-
 /* ********************************************************************* */
 /* **********         Funciones para manejo de la pila  de nodos        *************** */
 /* ********************************************************************* */
@@ -376,10 +376,10 @@ void tPila::acotar (int U) {
 
 
 /* ******************************************************************** */
-//         Funciones de reserva dinamica de memoria
+/* ***************Funciones de reserva dinamica de memoria ************ */
 /* ******************************************************************** */
-
 // Reserva en el HEAP una matriz cuadrada de dimension "orden".
+
 int ** reservarMatrizCuadrada(unsigned int orden) {
 	int** m = new int*[orden];
 	m[0] = new int[orden*orden];
@@ -396,3 +396,187 @@ void liberarMatriz(int** m) {
 	delete [] m;
 }
 
+/* ******************************************************************** */
+/* ********************* FUNCIONES PARA PARALELIZAR  ****************** */
+/* ******************************************************************** */
+
+MPI_Status status;  // Datos del mensaje
+int solicitante;  // Id del proceso que solicita trabajo
+int hay_mensajes; // Hay mensajes pendientes? si:no
+int tamanio;  // Tamaño de pila que se envía
+int cs;  // Cota superior recibida
+tPila *pilaNueva; // Pila enviada
+tNodo *posibleSol; // Solución 
+
+
+
+
+/* ********************************************************************* */
+//                      EQUILIBRADO DE CARGA
+/* ********************************************************************* */
+
+void Equilibrado_Carga(tPila *pila, bool *fin, tNodo *solucion) {
+  color = BLANCO;
+  posibleSol = new tNodo();
+  CopiaNodo(solucion, posibleSol);
+
+  if(pila->vacia()) { // el proceso no tiene trabajo: pide a otros procesos
+    /* Enviar petición de trabajo al proceso (rank + 1) % size */
+    MPI_Send(&rank, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
+    while (pila->vacia() && !*fin) {
+      /* Esperar mensaje de otro proceso */
+      MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &status);
+      switch (status.MPI_TAG) {
+        case PETICION: // peticion de trabajo
+          /* Recibir mensaje de petición de trabajo */
+          MPI_Recv(&solicitante, 1, MPI_INT, status.MPI_SOURCE, PETICION, comunicadorCarga, &status);
+          /* Reenviar petición de trabajo al proceso (rank + 1) % size */
+          MPI_Send(&solicitante, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
+          
+          if (solicitante == rank) { // peticion devuelta
+            /* Iniciar detección de posible situación de fin */
+            estado = PASIVO;
+            if (token_presente) {
+              (rank == 0) ?   color_token = BLANCO:color_token = color;              
+              /* Enviar Mensaje_testigo a anterior */
+              MPI_Send(&color_token, 1, MPI_INT, anterior, TOKEN, comunicadorCarga);
+              token_presente = false;
+             
+            }
+          }
+          break;
+        case NODOS: // resultado de una petición de trabajo
+        
+          MPI_Get_count(&status, MPI_INT, &tamanio);
+          /* Recibir nodos del proceso donante */
+          MPI_Recv(&pila->nodos[0], tamanio, MPI_INT, MPI_ANY_SOURCE, NODOS, comunicadorCarga, &status);
+          /* Almacenar nodos recibidos en la pila */
+          pila->tope = tamanio;
+          estado = ACTIVO;
+          break;
+        case TOKEN:
+          token_presente = true;
+          /* Recibir Mensajes de Petición pendientes */
+          MPI_Recv(&color_token, 1, MPI_INT, siguiente, TOKEN, comunicadorCarga, &status);
+          
+          if (estado == PASIVO) {
+            if (rank == 0 && color == BLANCO && color_token == BLANCO) {
+              *fin = true;
+              //Enviar Mensaje_fin al proc. siguiente
+              MPI_Send(&solucion->datos[0], 2 * NCIUDADES, MPI_INT, siguiente, FIN, comunicadorCarga);
+             
+            } else 
+                (rank == 0) ? color_token = BLANCO:color_token = color;
+              
+                /* Enviar Mensaje_testigo a anterior */
+                MPI_Send(NULL, 0, MPI_INT, anterior, TOKEN, comunicadorCarga);
+                token_presente = false;
+                color = BLANCO;
+            }          
+          break;
+        case FIN:
+
+          /* Recibir mensaje de fin */
+          *fin = true;
+        
+          /* Enviar Mensaje_fin al proc. siguiente */
+          MPI_Send(&solucion->datos[0], 2 * NCIUDADES, MPI_INT, siguiente, FIN, comunicadorCarga);
+          break;
+      }
+    }
+  }
+  if (!fin) { // el proceso tiene nodos para trabajar
+    // Sondear si hay mensajes pendientes de otros procesos 
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &hay_mensajes, &status);
+    while (hay_mensajes) { // atiende peticiones mientras haya mensajes
+      switch (status.MPI_TAG) {
+        case PETICION:
+          // Recibir mensaje de petición de trabajo 
+          MPI_Recv(&solicitante, 1, MPI_INT, anterior, PETICION, comunicadorCarga, &status);
+          if (pila->tamanio() > 3) {
+            /* Enviar nodos al proceso solicitante */
+            pilaNueva = new tPila();
+            pila->divide(*pilaNueva);
+
+            MPI_Send(&pilaNueva->nodos[0], pilaNueva->tope, MPI_INT, solicitante, NODOS, comunicadorCarga);
+            delete pilaNueva;
+            if (rank < solicitante) {
+              color = NEGRO;
+            }
+          } else {
+            // Pasar petición de trabajo al proceso (rank + 1) % size 
+            MPI_Send(&solicitante, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
+          }
+          break;
+        case TOKEN:
+          // Recibir Mensaje_testigo de siguiente 
+          MPI_Recv(NULL, 0, MPI_INT, siguiente, TOKEN, comunicadorCarga, &status);
+          token_presente = true;
+          break;
+      }
+      // Sondear si hay mensajes pendientes de otros procesos 
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &hay_mensajes, &status);
+    }
+  }
+
+}
+
+
+
+/* ********************************************************************* */
+//                      DIFUSION COTA SUPERIOR
+/* ********************************************************************* */
+
+bool Difusion_Cota_Superior(int *U, bool nueva_U){
+MPI_Status status;
+  MensajeCota mensajeCota, msjTemp;
+
+  int hayMensajes;
+  int cotaRecibida;
+ 
+  bool retorno = nueva_U;
+
+  if(difundir_cs_local && !pendiente_retorno_cs){
+    //Enviar valor local de cs al proceso (id+1)%P;
+    mensajeCota.cota= *U;
+    mensajeCota.origen = rank;
+    MPI_Send(&mensajeCota, 1, MPI_INT, (rank + 1) % size, TAGCOTA, comunicadorCota);
+    pendiente_retorno_cs = true;
+    difundir_cs_local = false;
+  }
+  
+  //Sondear si hay mensajes de cota superior pendientes;
+  MPI_Iprobe(anterior, TAGCOTA, comunicadorCota, &hayMensajes, &status);
+
+  while(hayMensajes > 0){   
+
+    //Recibir mensaje con valor de cota superior desde el proceso (id-1+P)%P;
+    MPI_Recv(&msjTemp,sizeof(MensajeCota), MPI_BYTE, (rank-1+size)% size , TAGCOTA, comunicadorCota, &status);
+    //Actualizar valor local de cota superior; 
+    cout << "cota" << msjTemp.cota;
+    if(msjTemp.cota < *U){
+      cout << "cota" << msjTemp.cota;
+         *U = msjTemp.cota;           
+         retorno = true;
+    } 
+
+    if(msjTemp.origen == rank && difundir_cs_local){      //Enviar valor local de cs al proceso (id+1) % P;           
+      mensajeCota.origen = rank;
+      mensajeCota.cota = *U;
+
+      MPI_Send(&mensajeCota, sizeof(Mensaje), MPI_BYTE, siguiente, TAGCOTA, comunicadorCota);
+      
+      pendiente_retorno_cs = true;
+      difundir_cs_local = false;
+
+    }else if(msjTemp.origen == rank && !difundir_cs_local)
+      pendiente_retorno_cs = false;
+    else// origen mensaje == otro proceso
+      //Reenviar mensaje al proceso (id+1)%P;
+      MPI_Send(&msjTemp, sizeof(Mensaje), MPI_BYTE, siguiente, TAGCOTA, comunicadorCota);
+    
+    //Sondear si hay mensajes de cota superior pendientes;
+    MPI_Iprobe(anterior, TAGCOTA, comunicadorCota, &hayMensajes, &status);
+  }
+  return retorno;
+}
