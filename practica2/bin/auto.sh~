@@ -1,6 +1,6 @@
 #!/bin/bash
-#FICH=salidaSIN.txt
-FICH=salidaCON.txt
+FICH=salidaSIN.txt
+#FICH=salidaCON.txt
 echo " ">> $FICH 
 echo "n=$1  p=$2 ">>$FICH
 echo " ">> $FICH 

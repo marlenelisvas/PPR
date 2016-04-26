@@ -15,7 +15,7 @@ extern bool token_presente;
 
 unsigned int NCIUDADES;
 int rank, size;
-
+bool retorno;
 /* ******************************************************************** */
 
 int main (int argc, char **argv) {
@@ -57,6 +57,8 @@ int main (int argc, char **argv) {
   MPI_Comm_dup(MPI_COMM_WORLD, &comunicadorCarga);
   MPI_Comm_dup(MPI_COMM_WORLD, &comunicadorCota);
 
+
+
   if (rank == 0) {
     token_presente = true;
     LeerMatriz(argv[2], tsp0);
@@ -77,6 +79,7 @@ int main (int argc, char **argv) {
   while (!fin) { 
     Ramifica(nodo, rnodo, lnodo, tsp0);
     nueva_U = false;
+    retorno = false;
 
     if (Solucion(lnodo)) {
       if (lnodo->ci() < U) {
@@ -109,7 +112,7 @@ int main (int argc, char **argv) {
     }
 
     Difusion_Cota_Superior(&U, &nueva_U);
-
+   
     if (nueva_U)  pila->acotar(U);   
 
     Equilibrado_Carga(pila, &fin, solucion);
@@ -123,11 +126,11 @@ int main (int argc, char **argv) {
 
 
   if (rank == 0) {
-    //  cout << "Solución = " << endl;
-    //  EscribeNodo(solucion);
-    //  cout << "Tiempo gastado= " << t << endl;
-    // cout << "Numero de iteraciones: " << iteraciones << endl;
-    // cout << "Numero de acotaciones: " << acotaciones << endl;
+     //cout << "Solución = " << endl;
+     EscribeNodo(solucion);
+     //cout << "Tiempo gastado= " << t << endl;
+     //cout << "Numero de iteraciones: " << iteraciones << endl;
+     //cout << "Numero de acotaciones: " << acotaciones << endl;
     cout<< endl << t << "\t"<< rank << ":" << iteraciones << "\t";
   }else 
       cout << rank << ":" << iteraciones << "\t";
@@ -140,6 +143,6 @@ int main (int argc, char **argv) {
   delete solucion;
 
   MPI_Finalize();
- 
+ cout << endl;
   exit(0);
 }

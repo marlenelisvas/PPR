@@ -402,14 +402,12 @@ void liberarMatriz(int** m) {
 
 MPI_Status status;  // Datos del mensaje
 int rankSolicitante;  // Id del proceso que solicita trabajo
-int hayMensajes; // Hay mensajes pendientes? si:no
 int tamanio;  // Tamaño de pila que se envía
-int cota;  // Cota superior recibida
 tPila *pilaAux; // Pila enviada
 tNodo *solucionLocal; // Solución local
-#define TAGCOTA 0
+int hayMensajes; // Hay mensajes pendientes? si:no
 /* ********************************************************************* */
-//                      EQUILIBRADO DE CARGA
+/* ******************* EQUILIBRADO DE CARGA **************************** */
 /* ********************************************************************* */
 
 void Equilibrado_Carga(tPila *pila, bool *fin, tNodo *solucion) {
@@ -512,11 +510,13 @@ void Equilibrado_Carga(tPila *pila, bool *fin, tNodo *solucion) {
         case PETICION:
           // Recibir mensaje de petición de trabajo 
           MPI_Recv(&rankSolicitante, 1, MPI_INT, anterior, PETICION, comunicadorCarga, &status);
-          if (pila->tamanio() > 1) {
+          if (pila->tamanio() > 3) {
              // Enviar nodos al proceso rankSolicitante 
             pilaAux = new tPila();
             
             pila->divide(*pilaAux);
+
+
             MPI_Send(&pilaAux->nodos[0], pilaAux->tope, MPI_INT, rankSolicitante, NODOS, comunicadorCarga);
             delete pilaAux;
             if (rank < rankSolicitante) color = NEGRO;
@@ -543,12 +543,19 @@ void Equilibrado_Carga(tPila *pila, bool *fin, tNodo *solucion) {
 /* ********************************************************************* */
 //                      DIFUSION COTA SUPERIOR
 /* ********************************************************************* */
+#define TAGCOTA 0
+int cota;  // Cota superior recibida
 
 void Difusion_Cota_Superior(int *U, bool *nueva_U) {
 
+difundir_cs_local = *nueva_U;
+pendiente_retorno_cs = false;
+// cota = *U;
+
+cout << "rank: "<<rank <<" cota inicial " << *U << endl;
   if (difundir_cs_local && !pendiente_retorno_cs) {
     // Enviar valor local de cs al proceos (rank + 1) % size 
-    MPI_Send(&U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
+    MPI_Send(U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
     pendiente_retorno_cs = true;
     difundir_cs_local = false;
   }
@@ -557,27 +564,33 @@ void Difusion_Cota_Superior(int *U, bool *nueva_U) {
   while (hayMensajes) {
     // Recibir mensajes con valor de cota superior desde el proceso (rank - 1 + size) % size 
     MPI_Recv(&cota, 1, MPI_INT, anterior, TAGCOTA, comunicadorCota, &status);
-    
+
     // Actualizar valor local de cota superior 
+    cout << "rank: "<<rank << " rank Ant " << anterior<<" cota recibida " << cota << endl;
     if (cota < *U) {
       *U = cota;
       *nueva_U = true;
+      cout << "rank: "<<rank <<" cota nueva " << cota << endl;  
+      // difundir_cs_local = true;  
     }
 
     if (status.MPI_SOURCE == rank && difundir_cs_local) {
+      cout << "rank: "<<rank <<" cota enviada " << *U << endl;
       // Enviar valor local de cs al proceso (rank + 1) % size 
-      MPI_Send(&U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
+      MPI_Send(U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
 
       pendiente_retorno_cs = true;
       difundir_cs_local = false;
-    } else if (status.MPI_SOURCE == rank && !difundir_cs_local)  pendiente_retorno_cs = false;
+
+    } else if (status.MPI_SOURCE == rank && !difundir_cs_local)  
+              pendiente_retorno_cs = false;
            else  // origen mensaje == otro proceso
             // Reenviar mensaje al proceso (rank + 1) % size 
-            MPI_Send(&U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
+            MPI_Send(U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
     
     // Sondear si hay mensajes de cota superior pendientes 
     MPI_Iprobe(anterior, MPI_ANY_TAG, comunicadorCota, &hayMensajes, &status);
-
+    
   }
 }
 
