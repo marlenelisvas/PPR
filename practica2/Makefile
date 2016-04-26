@@ -1,6 +1,6 @@
 
 #====================================================
-#
+# 			MAKEFILE
 #====================================================
 
 all : bbseq bbpar
@@ -23,8 +23,11 @@ libbb.o: libbb.cc libbb.h
 	mpicxx -O3  -c  -Wno-unused-result libbb.cc 
 
 #-Wall -Wno-unused-result  //eliminar warning
+#----------------------------------------------------
 clean:
-	/bin/rm -f *.o bbseq bbpar
+	/bin/rm -f *.o  *~ 
+rm: clean
+	/bin/rm -f bbseq bbpar	
 
 
 

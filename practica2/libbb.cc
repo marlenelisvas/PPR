@@ -10,7 +10,7 @@ using namespace MPI;
 using namespace std;
 extern unsigned int NCIUDADES;
 
-#define TAGCOTA  0
+
 
 // Tipos de mensajes que se env�an los procesos
 const int  PETICION = 0;
@@ -401,113 +401,132 @@ void liberarMatriz(int** m) {
 /* ******************************************************************** */
 
 MPI_Status status;  // Datos del mensaje
-int solicitante;  // Id del proceso que solicita trabajo
-int hay_mensajes; // Hay mensajes pendientes? si:no
+int rankSolicitante;  // Id del proceso que solicita trabajo
+int hayMensajes; // Hay mensajes pendientes? si:no
 int tamanio;  // Tamaño de pila que se envía
-int cs;  // Cota superior recibida
-tPila *pilaNueva; // Pila enviada
-tNodo *posibleSol; // Solución 
-
-
-
-
+int cota;  // Cota superior recibida
+tPila *pilaAux; // Pila enviada
+tNodo *solucionLocal; // Solución local
+#define TAGCOTA 0
 /* ********************************************************************* */
 //                      EQUILIBRADO DE CARGA
 /* ********************************************************************* */
 
 void Equilibrado_Carga(tPila *pila, bool *fin, tNodo *solucion) {
   color = BLANCO;
-  posibleSol = new tNodo();
-  CopiaNodo(solucion, posibleSol);
 
-  if(pila->vacia()) { // el proceso no tiene trabajo: pide a otros procesos
-    /* Enviar petición de trabajo al proceso (rank + 1) % size */
+  if (pila->vacia()) { // el proceso no tiene trabajo: pide a otros procesos
+    // Enviar petición de trabajo al proceso (rank + 1) % size 
     MPI_Send(&rank, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
+
     while (pila->vacia() && !*fin) {
-      /* Esperar mensaje de otro proceso */
+      // Esperar mensaje de otro proceso 
       MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &status);
+
       switch (status.MPI_TAG) {
+
         case PETICION: // peticion de trabajo
-          /* Recibir mensaje de petición de trabajo */
-          MPI_Recv(&solicitante, 1, MPI_INT, status.MPI_SOURCE, PETICION, comunicadorCarga, &status);
-          /* Reenviar petición de trabajo al proceso (rank + 1) % size */
-          MPI_Send(&solicitante, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
+          // Recibir mensaje de petición de trabajo 
+          MPI_Recv(&rankSolicitante, 1, MPI_INT, anterior, PETICION, comunicadorCarga, &status);
           
-          if (solicitante == rank) { // peticion devuelta
-            /* Iniciar detección de posible situación de fin */
+          // Reenviar petición de trabajo al proceso (rank + 1) % size
+          MPI_Send(&rankSolicitante, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
+
+          if (rankSolicitante == rank) { // peticion devuelta
+
+             // Iniciar detección de posible situación de fin 
             estado = PASIVO;
             if (token_presente) {
-              (rank == 0) ?   color_token = BLANCO:color_token = color;              
-              /* Enviar Mensaje_testigo a anterior */
-              MPI_Send(&color_token, 1, MPI_INT, anterior, TOKEN, comunicadorCarga);
+
+              (rank == 0) ? color_token = BLANCO : color_token = color;
+              
+              // Enviar Mensaje_testigo a anterior 
+              MPI_Send(NULL, 0, MPI_INT, anterior, TOKEN, comunicadorCarga);
               token_presente = false;
-             
+              color = BLANCO;
             }
           }
           break;
         case NODOS: // resultado de una petición de trabajo
-        
+
           MPI_Get_count(&status, MPI_INT, &tamanio);
-          /* Recibir nodos del proceso donante */
+
+          // Recibir nodos del proceso donante 
           MPI_Recv(&pila->nodos[0], tamanio, MPI_INT, MPI_ANY_SOURCE, NODOS, comunicadorCarga, &status);
-          /* Almacenar nodos recibidos en la pila */
+
+          // Almacenar nodos recibidos en la pila 
           pila->tope = tamanio;
           estado = ACTIVO;
           break;
         case TOKEN:
+          // Recibir Mensajes de Petición pendientes 
+          MPI_Recv(NULL, 0, MPI_INT, siguiente, TOKEN, comunicadorCarga, &status);
+
           token_presente = true;
-          /* Recibir Mensajes de Petición pendientes */
-          MPI_Recv(&color_token, 1, MPI_INT, siguiente, TOKEN, comunicadorCarga, &status);
-          
           if (estado == PASIVO) {
             if (rank == 0 && color == BLANCO && color_token == BLANCO) {
               *fin = true;
-              //Enviar Mensaje_fin al proc. siguiente
+              // Enviar Mensaje_fin al proceso siguiente 
               MPI_Send(&solucion->datos[0], 2 * NCIUDADES, MPI_INT, siguiente, FIN, comunicadorCarga);
-             
-            } else 
-                (rank == 0) ? color_token = BLANCO:color_token = color;
+
+              // Recibir Mensaje_fin del proceso anterior 
+              solucionLocal = new tNodo();
+              MPI_Recv(&solucionLocal->datos[0], 2 * NCIUDADES, MPI_INT, anterior, FIN, comunicadorCarga, &status);
+
+              if (solucionLocal->ci() < solucion->ci()) CopiaNodo(solucionLocal, solucion);              
+              delete solucionLocal;
+            } else {
+
+              (rank == 0) ?color_token = BLANCO : color_token = color;
               
-                /* Enviar Mensaje_testigo a anterior */
-                MPI_Send(NULL, 0, MPI_INT, anterior, TOKEN, comunicadorCarga);
-                token_presente = false;
-                color = BLANCO;
-            }          
+              // Enviar Mensaje_testigo a anterior 
+              MPI_Send(NULL, 0, MPI_INT, anterior, TOKEN, comunicadorCarga);
+              token_presente = false;
+              color = BLANCO;
+            }
+          }
           break;
         case FIN:
-
-          /* Recibir mensaje de fin */
+          // Recibir mensaje de fin 
           *fin = true;
-        
-          /* Enviar Mensaje_fin al proc. siguiente */
+          solucionLocal = new tNodo();
+          MPI_Recv(&solucionLocal->datos[0], 2 * NCIUDADES, MPI_INT, anterior, FIN, comunicadorCarga, &status);
+          
+          if (solucionLocal->ci() < solucion->ci())   CopiaNodo(solucionLocal, solucion);          
+          delete solucionLocal;
+
+          // Enviar Mensaje_fin al proceso siguiente 
           MPI_Send(&solucion->datos[0], 2 * NCIUDADES, MPI_INT, siguiente, FIN, comunicadorCarga);
           break;
       }
     }
   }
-  if (!fin) { // el proceso tiene nodos para trabajar
+  if (!*fin) { // el proceso tiene nodos para trabajar
     // Sondear si hay mensajes pendientes de otros procesos 
-    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &hay_mensajes, &status);
-    while (hay_mensajes) { // atiende peticiones mientras haya mensajes
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &hayMensajes, &status);
+
+    while (hayMensajes) { // atiende peticiones mientras haya mensajes
+
       switch (status.MPI_TAG) {
+
         case PETICION:
           // Recibir mensaje de petición de trabajo 
-          MPI_Recv(&solicitante, 1, MPI_INT, anterior, PETICION, comunicadorCarga, &status);
-          if (pila->tamanio() > 3) {
-            /* Enviar nodos al proceso solicitante */
-            pilaNueva = new tPila();
-            pila->divide(*pilaNueva);
+          MPI_Recv(&rankSolicitante, 1, MPI_INT, anterior, PETICION, comunicadorCarga, &status);
+          if (pila->tamanio() > 1) {
+             // Enviar nodos al proceso rankSolicitante 
+            pilaAux = new tPila();
+            
+            pila->divide(*pilaAux);
+            MPI_Send(&pilaAux->nodos[0], pilaAux->tope, MPI_INT, rankSolicitante, NODOS, comunicadorCarga);
+            delete pilaAux;
+            if (rank < rankSolicitante) color = NEGRO;
 
-            MPI_Send(&pilaNueva->nodos[0], pilaNueva->tope, MPI_INT, solicitante, NODOS, comunicadorCarga);
-            delete pilaNueva;
-            if (rank < solicitante) {
-              color = NEGRO;
-            }
-          } else {
+          } else 
             // Pasar petición de trabajo al proceso (rank + 1) % size 
-            MPI_Send(&solicitante, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
-          }
+            MPI_Send(&rankSolicitante, 1, MPI_INT, siguiente, PETICION, comunicadorCarga);
+          
           break;
+
         case TOKEN:
           // Recibir Mensaje_testigo de siguiente 
           MPI_Recv(NULL, 0, MPI_INT, siguiente, TOKEN, comunicadorCarga, &status);
@@ -515,68 +534,50 @@ void Equilibrado_Carga(tPila *pila, bool *fin, tNodo *solucion) {
           break;
       }
       // Sondear si hay mensajes pendientes de otros procesos 
-      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &hay_mensajes, &status);
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comunicadorCarga, &hayMensajes, &status);
     }
   }
-
 }
-
 
 
 /* ********************************************************************* */
 //                      DIFUSION COTA SUPERIOR
 /* ********************************************************************* */
 
-bool Difusion_Cota_Superior(int *U, bool nueva_U){
-MPI_Status status;
-  MensajeCota mensajeCota, msjTemp;
+void Difusion_Cota_Superior(int *U, bool *nueva_U) {
 
-  int hayMensajes;
-  int cotaRecibida;
- 
-  bool retorno = nueva_U;
-
-  if(difundir_cs_local && !pendiente_retorno_cs){
-    //Enviar valor local de cs al proceso (id+1)%P;
-    mensajeCota.cota= *U;
-    mensajeCota.origen = rank;
-    MPI_Send(&mensajeCota, 1, MPI_INT, (rank + 1) % size, TAGCOTA, comunicadorCota);
+  if (difundir_cs_local && !pendiente_retorno_cs) {
+    // Enviar valor local de cs al proceos (rank + 1) % size 
+    MPI_Send(&U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
     pendiente_retorno_cs = true;
     difundir_cs_local = false;
   }
-  
-  //Sondear si hay mensajes de cota superior pendientes;
-  MPI_Iprobe(anterior, TAGCOTA, comunicadorCota, &hayMensajes, &status);
+  // Sondear si hay mensajes de cota superior pendientes 
+  MPI_Iprobe(anterior, MPI_ANY_TAG, comunicadorCota, &hayMensajes, &status);
+  while (hayMensajes) {
+    // Recibir mensajes con valor de cota superior desde el proceso (rank - 1 + size) % size 
+    MPI_Recv(&cota, 1, MPI_INT, anterior, TAGCOTA, comunicadorCota, &status);
+    
+    // Actualizar valor local de cota superior 
+    if (cota < *U) {
+      *U = cota;
+      *nueva_U = true;
+    }
 
-  while(hayMensajes > 0){   
+    if (status.MPI_SOURCE == rank && difundir_cs_local) {
+      // Enviar valor local de cs al proceso (rank + 1) % size 
+      MPI_Send(&U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
 
-    //Recibir mensaje con valor de cota superior desde el proceso (id-1+P)%P;
-    MPI_Recv(&msjTemp,sizeof(MensajeCota), MPI_BYTE, (rank-1+size)% size , TAGCOTA, comunicadorCota, &status);
-    //Actualizar valor local de cota superior; 
-    cout << "cota" << msjTemp.cota;
-    if(msjTemp.cota < *U){
-      cout << "cota" << msjTemp.cota;
-         *U = msjTemp.cota;           
-         retorno = true;
-    } 
-
-    if(msjTemp.origen == rank && difundir_cs_local){      //Enviar valor local de cs al proceso (id+1) % P;           
-      mensajeCota.origen = rank;
-      mensajeCota.cota = *U;
-
-      MPI_Send(&mensajeCota, sizeof(Mensaje), MPI_BYTE, siguiente, TAGCOTA, comunicadorCota);
-      
       pendiente_retorno_cs = true;
       difundir_cs_local = false;
-
-    }else if(msjTemp.origen == rank && !difundir_cs_local)
-      pendiente_retorno_cs = false;
-    else// origen mensaje == otro proceso
-      //Reenviar mensaje al proceso (id+1)%P;
-      MPI_Send(&msjTemp, sizeof(Mensaje), MPI_BYTE, siguiente, TAGCOTA, comunicadorCota);
+    } else if (status.MPI_SOURCE == rank && !difundir_cs_local)  pendiente_retorno_cs = false;
+           else  // origen mensaje == otro proceso
+            // Reenviar mensaje al proceso (rank + 1) % size 
+            MPI_Send(&U, 1, MPI_INT, siguiente, TAGCOTA, comunicadorCota);
     
-    //Sondear si hay mensajes de cota superior pendientes;
-    MPI_Iprobe(anterior, TAGCOTA, comunicadorCota, &hayMensajes, &status);
+    // Sondear si hay mensajes de cota superior pendientes 
+    MPI_Iprobe(anterior, MPI_ANY_TAG, comunicadorCota, &hayMensajes, &status);
+
   }
-  return retorno;
 }
+

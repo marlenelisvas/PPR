@@ -1,168 +1,145 @@
 /* ******************************************************************** */
-/*               Algoritmo Branch-And-Bound Secuencial                  */
+/*               Algoritmo Branch-And-Bound Paralelo                    */
 /* ******************************************************************** */
 #include <cstdlib>
 #include <cstdio>
 #include <iostream>
 #include <mpi.h>
 #include "libbb.h"
-// #include "funciones.h"
 
 using namespace std;
-using namespace MPI;
 
-int rank, size;
+extern MPI_Comm comunicadorCarga, comunicadorCota;  
+extern int  anterior, siguiente; 
+extern bool token_presente;
+
 unsigned int NCIUDADES;
-extern MPI_Comm comunicadorCarga, comunicadorCota; 
+int rank, size;
 
-main (int argc, char **argv) {
+/* ******************************************************************** */
 
-  MPI_Init(&argc, &argv); // Inicializamos la comunicacion de los procesos
-  MPI_Comm_size(MPI_COMM_WORLD, &size); // Obtenemos el número total de procesos
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank); // Obtenemos el valor de nuestro identificador
+int main (int argc, char **argv) {
+  MPI_Init(&argc, &argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   switch (argc) {
-    case 3:   NCIUDADES = atoi(argv[1]);
-          break;
-    default:  cerr << "La sintaxis es: bbseq <tamaño> <archivo>" << endl;
-          exit(1);
-          break;
+    case 3:
+      NCIUDADES = atoi(argv[1]);
+      break;
+    default:
+      if (rank == 0)
+        cerr << "La sintaxis es: bbseq <tamaño> <archivo>" << endl;
+      MPI_Finalize();
+      exit(-1);
+    break;
   }
 
-  int** tsp0 = reservarMatrizCuadrada(NCIUDADES);
-  tNodo nodo,         // nodo a explorar
-        lnodo,        // hijo izquierdo
-        rnodo,        // hijo derecho
-        solucion;     // mejor solucion
+  int**   tsp0 = reservarMatrizCuadrada(NCIUDADES);
 
-  bool  fin = false,        // condicion de fin
-        nueva_U,      // hay nuevo valor de c.s.
-        activo;
-  extern bool token_presente;  // Indica si el proceso posee el token
-  extern int anterior ,// Identificador del anterior proceso
-             siguiente; // Identificador del siguiente proceso
+  tNodo   *nodo = new tNodo(),      // nodo a explorar
+          *rnodo = new tNodo(),  // hijo izquierdo
+          *lnodo = new tNodo(),  // hijo derecho
+          *solucion = new tNodo();  // mejor solucion
 
-  int iteraciones = 0, acotar=0;
-  tPila pila;         // pila de nodos a explorar
-  int  U;// valor de c.s.
-  U = INFINITO;                  // inicializa cota superior
+  bool    fin = false,              // condicion de fin
+          nueva_U;                  // hay nuevo valor de c.s.
+  int     U,                        // valor de c.s.
+          iteraciones = 0,
+          acotaciones = 0;
 
-  int nodosExplorados = 0; 
+  tPila   *pila = new tPila();      // pila de nodos a explorar
 
+  U = INFINITO;                         // inicializa cota superior
+  anterior = (rank - 1 + size) % size;  // inicializa proceso anterior
+  siguiente = (rank + 1) % size;        // inicializa proceso siguiente
 
-    //comunicadores
   MPI_Comm_dup(MPI_COMM_WORLD, &comunicadorCarga);
   MPI_Comm_dup(MPI_COMM_WORLD, &comunicadorCota);
 
-   // Determinamos anterior y siguiente.
-  anterior = (rank - 1 + size) % size;  // inicializa proceso anterior
-  siguiente = (rank + 1) % size;        // inicializa proceso siguiente
-//------------------------------------------------------------------------------
-  if(rank == 0){
-     token_presente = true;
-    //Leer_Problema_Inicial(&nodo);  
-    LeerMatriz (argv[2], tsp0);    // lee matriz de fichero  
-    activo = Inconsistente(tsp0);
+  if (rank == 0) {
+    token_presente = true;
+    LeerMatriz(argv[2], tsp0);
 
-   if(!activo) InicNodo (&nodo);              // inicializa estructura nodo
-   
-    //El proceso 0 reparte la matriz tps0
-    MPI_Bcast(&tsp0[0][0], // Puntero al dato que vamos a enviar
-                  NCIUDADES*NCIUDADES,  // Numero de datos a los que apunta el puntero
-                  MPI_INT, // Tipo del dato a enviar
-                  0, // Identificacion del proceso que envia el dato
-                  MPI_COMM_WORLD); 
+    MPI_Bcast(&tsp0[0][0], NCIUDADES * NCIUDADES, MPI_INT, 0, MPI_COMM_WORLD);
+    InicNodo(nodo);                // inicializa estructura nodo
 
-  }else{
+  } else {
     token_presente = false;
-    //El proceso 0 reparte la matriz tps0
-    MPI_Bcast(&tsp0[0][0], // Puntero al dato que vamos a enviar
-                  NCIUDADES*NCIUDADES,  // Numero de datos a los que apunta el puntero
-                  MPI_INT, // Tipo del dato a enviar
-                  0, // Identificacion del proceso que envia el dato
-                  MPI_COMM_WORLD); 
+    MPI_Bcast(&tsp0[0][0], NCIUDADES * NCIUDADES, MPI_INT, 0, MPI_COMM_WORLD);
+    Equilibrado_Carga(pila, &fin, solucion);
 
-    Equilibrado_Carga(&pila, &fin,&solucion);
-    if(!fin) pila.pop(nodo);
+    if (!fin) pila->pop(*nodo);
   }
 
-  double t=MPI::Wtime();
-  //===============================================================
-  //-----------------------ciclo del Branch&Bound------------------  
-  //===============================================================
-  while(!fin){          
-    
-        //Ramifica(&nodo, &lnodo, &rnodo);
-        Ramifica(&nodo, &lnodo, &rnodo, tsp0);
-        nueva_U = false;       
+  double t = MPI_Wtime();
+  //-------------------ciclo de Branch&Bound---------------------
+  while (!fin) { 
+    Ramifica(nodo, rnodo, lnodo, tsp0);
+    nueva_U = false;
 
-        if(Solucion(&rnodo)){
-          if(rnodo.ci() < U) { 
-            U = rnodo.ci(); //Actualiza cota sup
-            nueva_U = true;
-            CopiaNodo (&lnodo, &solucion);
-          }
-        }else{  // Si no es un nodo hoja
-          if(rnodo.ci() < U) if(!pila.push(rnodo)){
-            printf ("Error: pila agotada 1\n");
-            liberarMatriz(tsp0);
-            exit (1);
-          }
-        }
-     
-        if(Solucion(&lnodo)){
-
-          if(lnodo.ci() < U){
-            U = lnodo.ci();// Actualiza cota sup
-            nueva_U = true;
-            CopiaNodo (&lnodo, &solucion);
-
-          }  
-        }else{ // No es un nodo hoja
-          if(lnodo.ci()  < U) if( !pila.push(lnodo)){
-            printf ("Error: pila agotada 2 \n");
-            liberarMatriz(tsp0);
-            exit (1);
-          }
-        }
-     
-       // hay_nueva_cota_superior = Difusion_Cota_Superior(&U);
-        nueva_U = Difusion_Cota_Superior(&U,nueva_U);
-
-        // if(hay_nueva_cota_superior) Acotar(&pila, U);
-        if (nueva_U){   pila.acotar(U);   acotar ++;  }  
-      
-        Equilibrado_Carga(&pila, &fin,&solucion);
-
-        if(!fin)  pila.pop(nodo);
-
-        iteraciones++;
-      
+    if (Solucion(lnodo)) {
+      if (lnodo->ci() < U) {
+        U = lnodo->ci(); // actualiza c.s.
+        nueva_U = true;
+        CopiaNodo(lnodo, solucion);
+      }
+    } else { // no es nodo hoja
+      if (lnodo->ci() < U) 
+        if(!pila->push(*lnodo)){
+          printf ("Error: pila agotada\n");
+          liberarMatriz(tsp0);
+          exit (1);
+        }      
     }
-  //----------------------------------------------------------------
 
-  t=MPI::Wtime()-t;
+    if (Solucion(rnodo)) {
+      if (rnodo->ci() < U) {
+        U = rnodo->ci(); // actualiza c.s.
+        nueva_U = true;
+        CopiaNodo(rnodo, solucion);
+      }
+    } else { // no es nodo hoja
+      if (rnodo->ci() < U) 
+        if(!pila->push(*rnodo)){
+          printf ("Error: pila agotada\n");
+          liberarMatriz(tsp0);
+          exit (1);
+        }      
+    }
 
-  if (rank == 0){
-    printf ("Solucion: \n");
-    EscribeNodo(&solucion);
-    cout<< "Tiempo gastado= "<<t<<endl;
-    cout << "Numero de iteraciones = " << iteraciones << endl << endl;
+    Difusion_Cota_Superior(&U, &nueva_U);
 
-    //cout<< t<<"\t" << iteraciones <<"\t" << endl;
-  } 
+    if (nueva_U)  pila->acotar(U);   
 
+    Equilibrado_Carga(pila, &fin, solucion);
+
+    if (!fin)  pila->pop(*nodo);
+
+    iteraciones++;
+  }
+  //------------------------------------------------------
+  t = MPI_Wtime() - t;
+
+
+  if (rank == 0) {
+    //  cout << "Solución = " << endl;
+    //  EscribeNodo(solucion);
+    //  cout << "Tiempo gastado= " << t << endl;
+    // cout << "Numero de iteraciones: " << iteraciones << endl;
+    // cout << "Numero de acotaciones: " << acotaciones << endl;
+    cout<< endl << t << "\t"<< rank << ":" << iteraciones << "\t";
+  }else 
+      cout << rank << ":" << iteraciones << "\t";
+ 
   liberarMatriz(tsp0);
-  MPI_Finalize();
+  delete pila;
+  delete nodo;
+  delete rnodo;
+  delete lnodo;
+  delete solucion;
 
+  MPI_Finalize();
+ 
   exit(0);
 }
-
-
-
-
-
-
-
-
-

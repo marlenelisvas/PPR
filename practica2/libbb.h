@@ -212,27 +212,10 @@ void liberarMatriz(int** m);
 /* ******************************************************************** */
 
 /* ******************************************************************** */
-//				FUNCIONES- PARALELIZAR
+/* ************** FUNCIONES para PARALELIZAR ****************************** */
 /* ******************************************************************** */
-#ifndef MensajeCOTA_H
-#define MensajeCOTA_H
-	struct MensajeCota {
-		int origen;
-		int cota;
-	};
-#endif
 
-#ifndef MENSAJE_H
-#define MENSAJE_H
-	struct Mensaje {
-	int tipo;
-	int numNodos;
-	int colorToken;
-	int origen;
-};
-#endif
-
-//************************************************************************
-bool Difusion_Cota_Superior(int *U, bool nueva_u);
+void Difusion_Cota_Superior(int *U, bool *nueva_U);
 void Equilibrado_Carga(tPila *pila, bool *fin, tNodo *solucion);
+
 //************************************************************************
