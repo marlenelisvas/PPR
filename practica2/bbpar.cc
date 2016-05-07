@@ -37,7 +37,7 @@ int main (int argc, char **argv) {
 
   int**   tsp0 = reservarMatrizCuadrada(NCIUDADES);
 
-  tNodo   *nodo = new tNodo(),      // nodo a explorar
+  tNodo   *nodo = new tNodo(),   // nodo a explorar
           *rnodo = new tNodo(),  // hijo izquierdo
           *lnodo = new tNodo(),  // hijo derecho
           *solucion = new tNodo();  // mejor solucion
@@ -83,11 +83,11 @@ int main (int argc, char **argv) {
 
     if (Solucion(lnodo)) {
       if (lnodo->ci() < U) {
-        U = lnodo->ci(); // actualiza c.s.
+        U = lnodo->ci(); // actualiza cota sup
         nueva_U = true;
         CopiaNodo(lnodo, solucion);
       }
-    } else { // no es nodo hoja
+    } else { // si no es nodo hoja
       if (lnodo->ci() < U) 
         if(!pila->push(*lnodo)){
           printf ("Error: pila agotada\n");
@@ -98,7 +98,7 @@ int main (int argc, char **argv) {
 
     if (Solucion(rnodo)) {
       if (rnodo->ci() < U) {
-        U = rnodo->ci(); // actualiza c.s.
+        U = rnodo->ci(); // actualiza cota sup
         nueva_U = true;
         CopiaNodo(rnodo, solucion);
       }
@@ -126,14 +126,12 @@ int main (int argc, char **argv) {
 
 
   if (rank == 0) {
-     //cout << "Solución = " << endl;
-     EscribeNodo(solucion);
-     //cout << "Tiempo gastado= " << t << endl;
-     //cout << "Numero de iteraciones: " << iteraciones << endl;
-     //cout << "Numero de acotaciones: " << acotaciones << endl;
-    cout<< endl << t << "\t"<< rank << ":" << iteraciones << "\t";
+     cout << "Solución = " << endl;
+	     EscribeNodo(solucion);
+     cout << "Tiempo gastado= " << t << endl;     
+    //cout<< endl << t << "\t"<< rank << ":" << iteraciones << "\t"; //
   }else 
-      cout << rank << ":" << iteraciones << "\t";
+     // cout << rank << ":" << iteraciones << "\t";
  
   liberarMatriz(tsp0);
   delete pila;
@@ -143,6 +141,6 @@ int main (int argc, char **argv) {
   delete solucion;
 
   MPI_Finalize();
- cout << endl;
+
   exit(0);
 }
