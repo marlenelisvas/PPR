@@ -1,0 +1,142 @@
+
+#include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <string.h>
+#include <time.h>
+
+#include "cuda.h"
+#include "Graph.h"
+#include <math.h> 
+
+//2d bloque 16x16 
+
+// hebras columna les corresponde la fila
+// hacerlo con memoria compartida
+// ver que es lo que hay que compartir 
+#define blocksize 256
+
+using namespace std;
+
+//**************************************************************************
+// Kernel to update the Matrix at k-th iteration
+__global__ void floyd_kernel(int * M, const int nverts, const int k)
+  { 
+//*******************************************************************
+	int fil = blockIdx.y;
+	int	col = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (fil < nverts && col < nverts) 
+		if (fil != col && fil != k && col != k) 
+			M[fil * nverts + col] = min( M[fil * nverts + k] + M[k * nverts + col],
+										 M[fil * nverts + col]);  
+
+//*******************************************************************       
+  }
+int main (int argc, char *argv[])
+{
+	if (argc != 2) 
+	{
+	 cerr << "Sintaxis: " << argv[0] << " <archivo de grafo>" << endl;
+	return(-1);
+	}
+	
+
+
+    //Get GPU information
+    int devID;
+    cudaDeviceProp props;
+    cudaError_t err;
+    err=cudaGetDevice(&devID);
+    if (err!=cudaSuccess) {cout<<"ERRORRR"<<endl;}
+    
+    cudaGetDeviceProperties(&props, devID);
+    printf("Device %d: \"%s\" with Compute %d.%d capability\n",
+           devID, props.name, props.major, props.minor);
+
+     
+Graph G;
+G.lee("input/input4");		// Read the Graph
+
+//cout << "EL Grafo de entrada es:"<<endl;
+G.imprime();
+
+const int nverts=G.vertices;//número de vertices del grafo
+const int niters=nverts;	//número de iteraciones
+const int nverts2=nverts*nverts;// número de elementos 
+
+int *c_Out_M=new int[nverts2];	//matriz-HOST
+int size=nverts2*sizeof(int);	//tamaño en bytes
+int * d_In_M=NULL;				//matriz-DEVICE
+//======================================================
+//						GPU phase
+//======================================================
+const dim3 block_size ( blocksize, 1); // Tamaño bloque  
+const dim3 numblock (ceil((float) nverts / block_size.x),
+					 ceil((float) nverts / block_size.y));// numero de Bloques
+//reserva memoria de la matriz-DEVICE
+err=cudaMalloc((void **) &d_In_M, size); 
+if (err!=cudaSuccess) {cout<<"ERROR: Bad Allocation in Device Memory"<<endl;}
+
+double  t1=clock();
+
+//copia matriz-HOST a matriz-DEVICE
+err=cudaMemcpy(d_In_M,G.Get_Matrix(),size,cudaMemcpyHostToDevice);
+if (err!=cudaSuccess) {cout<<"ERROR: COPY MATRIX TO DEVICE"<<endl;}
+//inicia la iteracion
+for(int k=0;k<niters;k++)
+{  
+//*******************************************************************
+	 // Kernel Launch
+	  floyd_kernel<<<numblock, blocksize>>>(d_In_M, nverts, k);		
+//*******************************************************************  
+  
+  err = cudaGetLastError();
+    
+  if (err != cudaSuccess)
+     {
+       fprintf(stderr, "Failed to launch kernel!\n");
+       exit(EXIT_FAILURE);
+     }
+	    
+  }
+
+
+cudaMemcpy(c_Out_M, d_In_M, size, cudaMemcpyDeviceToHost);
+
+
+double Tgpu=clock();
+Tgpu=(Tgpu-t1)/CLOCKS_PER_SEC;
+cout<< "Tiempo gastado GPU= "<<Tgpu<<endl<<endl;
+//=================================
+//			CPU phase
+//=================================
+t1=clock();
+// BUCLE PPAL DEL ALGORITMO
+for(int k=0;k<niters;k++)
+   for(int i=0;i<nverts;i++)
+     for(int j=0;j<nverts;j++)
+      if (i!=j && i!=k && j!=k) 
+        {
+         int vikj=min(G.arista(i,k)+G.arista(k,j),G.arista(i,j));
+         G.inserta_arista(i,j,vikj);   
+        }
+	
+  double t2=clock();
+  t2=(t2-t1)/CLOCKS_PER_SEC;
+//  cout << endl<<"EL Grafo con las distancias de los caminos más cortos es:"<<endl<<endl;
+
+  G.imprime();
+  cout<< "Tiempo gastado CPU= "<<t2<<endl<<endl;
+  cout<< "Ganancia= "<< t2/Tgpu <<endl;
+   
+  for(int i=0;i<nverts;i++)
+    for(int j=0;j<nverts;j++)
+       if (abs(c_Out_M[i*nverts+j]-G.arista(i,j))>0) 
+         cout <<"Error ("<<i<<","<<j<<")   "
+	       <<c_Out_M[i*nverts+j]<<"..."<<G.arista(i,j)<<endl;
+
+  return 0;
+	
+}
+
