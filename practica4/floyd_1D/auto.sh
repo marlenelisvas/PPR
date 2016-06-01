@@ -1,7 +1,7 @@
 #!/bin/bash
-#FICH=salidaSIN.txt
-FICH=salida2.txt
-NT=2;
+#floyd 1D
+FICH=salida4.txt
+NT=4;
 echo "*******400******** ">> $FICH 
 LIMIT=10
 for ((a=0; a<LIMIT; a++))

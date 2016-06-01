@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
 
       int *A = G.getMatriz();
       B = (int *) malloc(nverts * nverts * sizeof(int));    // Se reserva espacio 
-      G.swap(A,B);                                        // Se copia la matriz del grafo
+      G.swap(A,B);                                        // Se copia la matriz 
       int colK[nverts], filK[nverts];
 
       int i, j, k,ij,id;
@@ -59,9 +59,9 @@ int main(int argc, char *argv[]) {
         for (k = 0; k < nverts; k++) {
 
           #pragma omp barrier
-          if (k >= iInit && k < iEnd)  // La fila K pertenece al proceso
-            for (i = 0; i < nverts; i++) {   
-              kG = k * nverts;      
+          if (k >= iInit && k < iEnd){  // La fila K pertenece al proceso
+             kG = k * nverts;   
+             for (i = 0; i < nverts; i++)                  
               filK[i] = B[kG + i];            
             }
 
